@@ -3,35 +3,26 @@ package com.hitachivantara.aws.rekognition.processors;
 import com.amazonaws.services.rekognition.AmazonRekognition;
 import com.amazonaws.services.rekognition.model.*;
 import com.hitachivantara.aws.rekognition.clients.RekognitionClientFactory;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 
 public class ProcessFaces {
-    public void run(String[] args) {
 
-        if (args.length < 1) {
-            System.err.println("Please provide an image.");
+
+    public void run(String bucketName, String photoName) throws Exception{
+
+        if ( bucketName == null || bucketName.isEmpty() ) {
+            System.err.println("Please provide a bucket.");
             return;
         }
-
-        String imgPath = args[0];
-        byte[] bytes;
-        try {
-            bytes = Files.readAllBytes(Paths.get(imgPath));
-        } catch (IOException e) {
-            System.err.println("Failed to load image: " + e.getMessage());
-            return;
-        }
-        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
 
         AmazonRekognition rekognition = RekognitionClientFactory.createClient();
 
         DetectFacesRequest request = new DetectFacesRequest()
-                .withImage(new Image().withBytes(byteBuffer))
+                .withImage(new Image()
+                        .withS3Object(new S3Object()
+                                .withName(photoName).withBucket(bucketName)))
                 .withAttributes(Attribute.ALL);
+
         DetectFacesResult result = rekognition.detectFaces(request);
 
         String orientationCorrection = result.getOrientationCorrection();
@@ -39,13 +30,11 @@ public class ProcessFaces {
 
         List<FaceDetail> faceDetails = result.getFaceDetails();
         for (FaceDetail faceDetail : faceDetails) {
-
             printFaceDetails(faceDetail);
         }
     }
 
     private void printFaceDetails(FaceDetail faceDetail) {
-        System.out.println("###############");
 
         AgeRange ageRange = faceDetail.getAgeRange();
         System.out.println("Age range: " + ageRange.getLow() + "-" + ageRange.getHigh());
