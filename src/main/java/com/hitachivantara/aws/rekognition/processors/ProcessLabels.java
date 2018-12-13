@@ -1,41 +1,30 @@
 package com.hitachivantara.aws.rekognition.processors;
 
 import com.amazonaws.services.rekognition.AmazonRekognition;
-import com.amazonaws.services.rekognition.model.DetectLabelsRequest;
-import com.amazonaws.services.rekognition.model.DetectLabelsResult;
-import com.amazonaws.services.rekognition.model.Image;
-import com.amazonaws.services.rekognition.model.Label;
+import com.amazonaws.services.rekognition.model.*;
 import com.hitachivantara.aws.rekognition.clients.RekognitionClientFactory;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 
 public class ProcessLabels {
-    public void run(String[] args) {
 
-        if (args.length < 1) {
-            System.err.println("Please provide an image.");
+
+    public void run(String bucketName, String photoName) throws Exception{
+
+        if ( bucketName == null || bucketName.isEmpty() ) {
+            System.err.println("Please provide a bucket.");
             return;
         }
-
-        String imgPath = args[0];
-        byte[] bytes;
-        try {
-            bytes = Files.readAllBytes(Paths.get(imgPath));
-        } catch (IOException e) {
-            System.err.println("Failed to load image: " + e.getMessage());
-            return;
-        }
-        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
 
         AmazonRekognition rekognition = RekognitionClientFactory.createClient();
 
         DetectLabelsRequest request = new DetectLabelsRequest()
-                .withImage(new Image().withBytes(byteBuffer))
-                .withMaxLabels(10);
+                .withImage(new Image()
+                        .withS3Object(new S3Object()
+                                .withName(photoName).withBucket(bucketName)))
+                .withMaxLabels(10)
+                .withMinConfidence(75F);
+
         DetectLabelsResult result = rekognition.detectLabels(request);
 
         List<Label> labels = result.getLabels();
@@ -43,5 +32,4 @@ public class ProcessLabels {
             System.out.println(label.getName() + ": " + label.getConfidence());
         }
     }
-
 }
